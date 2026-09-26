@@ -1284,6 +1284,13 @@
         });
     }
 
+    function bookReaderUrl(bookUrl) {
+        if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
+            return new URL(`/book-pdf?url=${encodeURIComponent(bookUrl.href)}`, window.location.origin).href;
+        }
+        return bookUrl.href;
+    }
+
     function closeBookReader() {
         stopBookReadingTimer();
         const modal = el('book-reader-modal');
@@ -1378,7 +1385,7 @@
         el('book-reading-status').textContent = '';
         el('book-reader-source').href = bookUrl.href;
         el('book-reader-frame').title = book.title || 'Pembaca buku';
-        el('book-reader-frame').src = bookUrl.href;
+        el('book-reader-frame').src = bookReaderUrl(bookUrl);
         el('book-details-modal').classList.add('hidden');
         el('book-reader-modal').classList.remove('hidden');
         el('book-reader-modal').classList.add('flex');
