@@ -682,25 +682,25 @@
         return false;
     }
 
-    byId('student-choice-button').addEventListener('click', showStudentLogin);
-    byId('teacher-choice-button').addEventListener('click', showTeacherLogin);
-    byId('student-choice-back').addEventListener('click', showAuthScreen);
-    byId('teacher-choice-back').addEventListener('click', showAuthScreen);
-    byId('student-login-form').addEventListener('submit', async event => {
+    el('student-choice-button').addEventListener('click', showStudentLogin);
+    el('teacher-choice-button').addEventListener('click', showTeacherLogin);
+    el('student-choice-back').addEventListener('click', showAuthScreen);
+    el('teacher-choice-back').addEventListener('click', showAuthScreen);
+    el('student-login-form').addEventListener('submit', async event => {
         event.preventDefault();
-        const error = byId('auth-error');
+        const error = el('auth-error');
         error.textContent = '';
-        const nisn = byId('student-nisn-input').value.trim();
+        const nisn = el('student-nisn-input').value.trim();
         if (!nisn) { error.textContent = 'NISN wajib diisi.'; return; }
         await loginWithNisn(nisn);
         if (!currentStudent) error.textContent = 'NISN tidak valid atau tidak ditemukan.';
     });
-    byId('teacher-login-form').addEventListener('submit', async event => {
+    el('teacher-login-form').addEventListener('submit', async event => {
         event.preventDefault();
-        const error = byId('auth-error');
+        const error = el('auth-error');
         error.textContent = '';
-        const username = byId('teacher-username-input').value.trim().toLowerCase();
-        const password = byId('teacher-password-input').value;
+        const username = el('teacher-username-input').value.trim().toLowerCase();
+        const password = el('teacher-password-input').value;
         if (!username || !password) { error.textContent = 'Nama pengguna dan kata sandi wajib diisi.'; return; }
         try {
             let teacher = await verifyLocalTeacher(username, password);
