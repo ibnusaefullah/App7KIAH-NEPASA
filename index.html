@@ -465,19 +465,19 @@
         setTimeout(() => {
             loadingStatusSplash.textContent = "Menghubungkan ke Data Server...";
             loadingStatusSplash.classList.add('fade-in-up');
+            loadApplicationData();
         }, 1600);
+    };
 
-
-        // Fade out and transition to main app
-        setTimeout(() => { splashScreen.classList.add('fade-out'); }, 3500); 
-
+    function finishSplashScreen() {
+        const splashScreen = document.getElementById('splash-screen');
+        if (!splashScreen || splashScreen.style.display === 'none') return;
+        splashScreen.classList.add('fade-out');
         setTimeout(() => {
             splashScreen.style.display = 'none';
             document.body.classList.remove('overflow-hidden');
-            // Start loading the main application's data
-            loadApplicationData();
-        }, 4000); 
-    };
+        }, 500);
+    }
 
 
     // --- MAIN APP LOGIC ---
@@ -891,7 +891,7 @@
                 applyAppData(JSON.parse(cachedData), isRefresh);
             } else {
                 loadingView.style.display = 'flex';
-                loadingText.textContent = 'Gagal memuat data dari database.';
+                document.getElementById('loading-status-splash').textContent = 'Menghubungkan ke Data Server...';
                 console.error('Error fetching application data:', error);
             }
         }
@@ -912,6 +912,7 @@
         activityFeed = data.activityFeed || {};
         if (!isRefresh) {
             loadingView.style.display = 'none';
+            finishSplashScreen();
             initializeNotifications();
             setupEventListeners();
             setupTouchGestures();
@@ -2388,7 +2389,10 @@
         }
     }
 
-    window.addEventListener('online', flushPendingWrites);
+    window.addEventListener('online', () => {
+        flushPendingWrites();
+        if (document.getElementById('splash-screen').style.display !== 'none') loadApplicationData();
+    });
     
     function timeAgo(dateStr) {
         // This function requires a valid date object or timestamp.
