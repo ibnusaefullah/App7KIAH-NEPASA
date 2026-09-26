@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>PTKAIH - UPTD SD Negeri 1 Paoman</title>
     
     <!-- Tailwind CSS -->
@@ -256,6 +257,22 @@
         #refresh-icon.refreshing svg {
             animation: spin 1s linear infinite;
         }
+        #page-video { height: 100%; padding: 0; overflow: hidden; }
+        .short-video-feed { height: 100%; overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior-y: contain; background: #08090b; color: #fff; }
+        .short-video-item { box-sizing: border-box; display: grid; grid-template-rows: auto 1fr auto; gap: 14px; height: 100%; min-height: 100%; padding: 16px 14px; scroll-snap-align: start; scroll-snap-stop: always; background: radial-gradient(ellipse at 50% 45%, #252930 0, #101216 62%, #08090b 100%); }
+        .short-video-heading { display: grid; gap: 4px; }
+        .short-video-index { color: #a8b4c5; font-size: 11px; font-weight: 700; }
+        .short-video-heading h2 { margin: 0; color: #fff; font-size: 16px; font-weight: 700; line-height: 1.35; }
+        .short-video-player-area { display: grid; place-items: center; min-height: 0; }
+        .short-video-player { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: 100%; overflow: hidden; background: #000; border-radius: 8px; }
+        .short-video-player iframe { display: block; width: 100%; height: 100%; border: 0; }
+        .short-video-file-link { display: grid; width: 100%; height: 100%; place-content: center; gap: 10px; padding: 16px; color: #fff; text-align: center; text-decoration: none; }
+        .short-video-file-link strong { color: #93c5fd; }
+        .short-video-caption { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 4px; }
+        .short-video-caption strong { font-size: 13px; }
+        .short-video-caption p { margin: 3px 0 0; color: #c0c5ce; font-size: 11px; }
+        .short-video-open { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border: 1px solid #ffffff38; border-radius: 50%; color: #fff; }
+        .short-video-open svg { width: 18px; height: 18px; }
 
 
     </style>
@@ -482,13 +499,13 @@
         teacher: "................",
     };
     const habits = [
-        { name: "Bangun Pagi", icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`, hasTimeInput: true },
-        { name: "Taat Beribadah", icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>` },
-        { name: "Berolahraga", icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>` },
-        { name: "Makan Sehat dan Bergizi", icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>` },
-        { name: "Gemar Belajar", icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>` },
-        { name: "Aktif Bermasyarakat", icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>` },
-        { name: "Tidur Cepat", icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`, hasTimeInput: true }
+        { name: "Bangun Pagi", icon: "https://cerdasberkarakter.kemendikdasmen.go.id/wp-content/uploads/2024/12/1-bangun-pagi.png", hasTimeInput: true },
+        { name: "Taat Beribadah", icon: "https://cerdasberkarakter.kemendikdasmen.go.id/wp-content/uploads/2024/12/2-beribadah.png" },
+        { name: "Berolahraga", icon: "https://cerdasberkarakter.kemendikdasmen.go.id/wp-content/uploads/2024/12/3-berolahraga.png" },
+        { name: "Makan Sehat dan Bergizi", icon: "https://cerdasberkarakter.kemendikdasmen.go.id/wp-content/uploads/2024/12/4-makan-sehat-da-bergizi.png" },
+        { name: "Gemar Belajar", icon: "https://cerdasberkarakter.kemendikdasmen.go.id/wp-content/uploads/2024/12/5-gemar-belajar.png" },
+        { name: "Aktif Bermasyarakat", icon: "https://cerdasberkarakter.kemendikdasmen.go.id/wp-content/uploads/2024/12/6-bermasyarakat.png" },
+        { name: "Tidur Cepat", icon: "https://cerdasberkarakter.kemendikdasmen.go.id/wp-content/uploads/2024/12/7-tidur-cepat.png", hasTimeInput: true }
     ];
 
     const badges = [
@@ -676,7 +693,12 @@
                 return true;
             }
             if (session?.type === 'teacher' && session.identifier) {
-                currentAdmin = { username: session.identifier, role: 'guru', localOnly: true };
+                currentAdmin = {
+                    username: session.identifier,
+                    token: session.token || null,
+                    role: session.role || 'guru',
+                    localOnly: session.localOnly ?? !session.token
+                };
                 currentStudent = null;
                 enterApplication();
                 return true;
@@ -710,7 +732,6 @@
         submitButton.textContent = 'Memeriksa...';
         try {
             let teacher = await verifyLocalTeacher(username, password);
-            if (hasLocalTeacherAccount(username) && !teacher) throw new Error('Username atau kata sandi guru tidak cocok.');
             if (!teacher) {
                 const result = await Promise.race([
                     postData({ action: 'teacherLogin', payload: { username, password } }),
@@ -721,7 +742,13 @@
             }
             currentAdmin = teacher;
             currentStudent = null;
-            saveAuthSession({ type: 'teacher', identifier: username });
+            saveAuthSession({
+                type: 'teacher',
+                identifier: username,
+                token: teacher.token || null,
+                role: teacher.role || 'guru',
+                localOnly: Boolean(teacher.localOnly)
+            });
             enterApplication();
         } catch (loginError) { error.textContent = loginError.message; }
         finally { submitButton.disabled = false; submitButton.textContent = 'Masuk sebagai guru'; }
@@ -1010,7 +1037,7 @@
                     <div class="grid grid-cols-2 gap-2 text-sm">
                           ${habitsToShow.map(habit => {
                               const habitInfo = habits.find(h => h.name === habit);
-                              return `<div class="flex items-center gap-2 p-2 rounded-lg" style="background-color: var(--bg-secondary);"><span style="color: var(--text-secondary)">${habitInfo ? habitInfo.icon : ''}</span><span>${habit}</span></div>`
+                              return `<div class="flex items-center gap-2 p-2 rounded-lg" style="background-color: var(--bg-secondary);"><span>${habitInfo ? `<img src="${habitInfo.icon}" alt="" class="h-6 w-6 object-contain">` : ''}</span><span>${habit}</span></div>`
                           }).join('')}
                     </div>
                 </div>
@@ -1031,13 +1058,57 @@
     }
 
 
+    function youtubeEmbedUrl(videoId) {
+        const url = new URL(`https://www.youtube.com/embed/${encodeURIComponent(videoId)}`);
+        url.searchParams.set('enablejsapi', '1');
+        if (window.location.origin !== 'null') url.searchParams.set('origin', window.location.origin);
+        return url.toString();
+    }
+
+    function observeVideoFeed(videoPage, feed) {
+        videoPage.videoObserver?.disconnect();
+        const players = [...feed.querySelectorAll('iframe[data-player-src]')];
+        const playMuted = player => {
+            const url = new URL(player.dataset.playerSrc);
+            url.searchParams.set('autoplay', '1');
+            url.searchParams.set('mute', '1');
+            url.searchParams.set('playsinline', '1');
+            player.src = url.toString();
+            player.dataset.active = 'true';
+        };
+        if (!('IntersectionObserver' in window)) {
+            if (players[0]) playMuted(players[0]);
+            return;
+        }
+        const observer = new IntersectionObserver(records => {
+            records.forEach(record => {
+                const player = record.target;
+                if (record.isIntersecting && record.intersectionRatio >= 0.65) {
+                    if (player.dataset.active !== 'true') playMuted(player);
+                } else if (player.dataset.active === 'true') {
+                    player.src = 'about:blank';
+                    player.dataset.active = 'false';
+                }
+            });
+        }, { root: feed, threshold: [0, 0.65] });
+        players.forEach(player => observer.observe(player));
+        videoPage.videoObserver = observer;
+    }
+
     function renderVideoPage() {
         const videoPage = el('page-video');
         const videos = Object.values(videoCollection);
         if (videos.length === 0) {
             videoPage.innerHTML = `<p class="text-center mt-8">Belum ada video yang tersedia.</p>`; return;
         }
-        videoPage.innerHTML = `<div class="grid grid-cols-1 gap-4">${videos.map(video => `<div class="rounded-lg shadow-sm overflow-hidden" style="background-color: var(--bg-primary);"><div class="relative w-full aspect-video bg-gray-300 dark:bg-gray-700 flex items-center justify-center"><iframe class="w-full h-full" src="https://www.youtube.com/embed/${video.youtubeId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div><div class="p-4"><h3 class="font-semibold">${video.title}</h3><p class="text-sm" style="color: var(--text-secondary)">Video pembelajaran</p></div></div>`).join('')}</div>`;
+        const openedFromFile = window.location.protocol === 'file:';
+        videoPage.innerHTML = `<div class="short-video-feed" tabindex="0" aria-label="Video kebiasaan anak Indonesia">${videos.map((video, index) => {
+            const player = openedFromFile
+                ? `<a class="short-video-file-link" href="https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}" target="_blank" rel="noopener noreferrer"><span>Pemutaran tertanam perlu dibuka melalui alamat web.</span><strong>Putar di YouTube</strong></a>`
+                : `<iframe data-player-src="${youtubeEmbedUrl(video.youtubeId)}" src="about:blank" title="${video.title}" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
+            return `<article class="short-video-item"><header class="short-video-heading"><span class="short-video-index">VIDEO ${String(index + 1).padStart(2, '0')} / ${String(videos.length).padStart(2, '0')}</span><h2>${video.title}</h2></header><div class="short-video-player-area"><div class="short-video-player">${player}</div></div><footer class="short-video-caption"><div><strong>7 KAIH</strong><p>Tujuh Kebiasaan Anak Indonesia Hebat</p></div><a class="short-video-open" href="https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}" target="_blank" rel="noopener noreferrer" aria-label="Buka video di YouTube"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M10 14 21 3M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"/></svg></a></footer></article>`;
+        }).join('')}</div>`;
+        observeVideoFeed(videoPage, videoPage.querySelector('.short-video-feed'));
     }
 
     function renderBookPage() {
@@ -1246,7 +1317,8 @@
                         const habitAchievements = achievements[badge.name] || [];
                         const completions = habitAchievements.length;
                         const isUnlocked = completions >= 20;
-                        const icon = isUnlocked ? badge.unlockedIcon : badge.lockedIcon;
+                        const habit = habits.find(item => item.name === badge.name);
+                        const icon = `<img src="${habit?.icon || ''}" alt="" class="h-full w-full object-contain ${isUnlocked ? '' : 'grayscale opacity-40'}">`;
                         const toastMessage = isUnlocked ? '' : `Selesaikan ${20 - completions} kali lagi untuk membuka lencana ini!`;
                         const clickAction = isUnlocked && isOwnProfile ? `showBadgeDetailsModal('${badge.name}')` : `alert('${toastMessage}')`;
                         return `<div onclick="${clickAction}" class="badge flex flex-col items-center ${isOwnProfile ? 'cursor-pointer' : 'cursor-default'}"><div class="w-14 h-14">${icon}</div><span class="text-xs text-center mt-1 font-medium ${isUnlocked ? '' : 'opacity-50'}">${badge.name}</span></div>`;
@@ -1416,7 +1488,7 @@
         const habitHTML = habits.map(habit => {
             const habitId = habit.name.toLowerCase().replace(/\s/g, '-').replace(/&/g, 'dan');
             const timeInputHTML = habit.hasTimeInput ? `<input type="time" id="${habitId}-time" class="input-field text-sm w-28 mx-2 p-1.5 hidden">` : '';
-            return `<div class="flex items-center justify-between p-3 rounded-lg border" style="background-color: var(--bg-primary); border-color: var(--border-color);"><div class="flex items-center gap-3 flex-grow"><span>${habit.icon}</span><span class="font-medium">${habit.name}</span></div>${timeInputHTML}<div class="relative inline-block w-10 mr-2 align-middle select-none"><input type="checkbox" name="${habitId}" id="${habitId}" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/><label for="${habitId}" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label></div></div>`;
+            return `<div class="flex items-center justify-between p-3 rounded-lg border" style="background-color: var(--bg-primary); border-color: var(--border-color);"><div class="flex items-center gap-3 flex-grow"><img src="${habit.icon}" alt="" class="h-6 w-6 object-contain"><span class="font-medium">${habit.name}</span></div>${timeInputHTML}<div class="relative inline-block w-10 mr-2 align-middle select-none"><input type="checkbox" name="${habitId}" id="${habitId}" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/><label for="${habitId}" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label></div></div>`;
         }).join('');
         container.innerHTML = `<form id="habit-form"><h2 class="font-bold text-lg mb-3 text-center">Isi Laporan Hari Ini</h2><p class="text-center mb-4" style="color: var(--text-secondary);">${new Date().toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'})}</p><div class="space-y-4">${habitHTML}</div><div class="mt-6"><button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 px-6 rounded-lg transition">Posting Aktivitas</button></div></form>`;
         container.querySelector('#habit-form').addEventListener('submit', handleHabitFormSubmit);
@@ -1543,6 +1615,7 @@
     
     function showBadgeDetailsModal(habitName) {
         const badge = badges.find(b => b.name === habitName);
+        const habitIcon = habits.find(habit => habit.name === habitName)?.icon;
         const studentData = studentDatabase[currentStudent.nisn];
         const habitAchievements = studentData.achievements[habitName] || [];
         const totalCompletions = habitAchievements.length;
@@ -1557,7 +1630,7 @@
                 <button onclick="el('badge-details-modal').classList.add('hidden')" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-                <div class="mx-auto w-20 h-20">${badge.unlockedIcon}</div>
+                <div class="mx-auto w-20 h-20"><img src="${habitIcon || ''}" alt="${habitName}" class="h-full w-full object-contain"></div>
                 <h3 class="text-lg font-bold mt-4">${badge.name}</h3>
                 <p class="text-sm" style="color: var(--text-secondary)">${badge.description}</p>
                 <div class="mt-4 bg-blue-50 dark:bg-blue-900/50 p-3 rounded-lg">
@@ -2104,7 +2177,15 @@
         try {
             if (body.action === 'teacherLogin') {
                 const username = String(body.payload.username || '').trim().toLowerCase();
-                const email = username.includes('@') ? username : `${username}@ptkaih.id`;
+                const params = new URLSearchParams({
+                    collection: 'eq.teachers',
+                    select: 'data',
+                    'data->>username': `eq.${username}`,
+                    limit: '1'
+                });
+                const teacherRecords = await supabaseRequest(`/rest/v1/app_records?${params}`);
+                const storedEmail = teacherRecords?.[0]?.data?.email;
+                const email = username.includes('@') ? username : (storedEmail || `${username}@ptkaih.id`);
                 const session = await supabaseRequest('/auth/v1/token?grant_type=password', {
                     method: 'POST', body: { email, password: body.payload.password }
                 });
