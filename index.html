@@ -319,7 +319,7 @@
                     <button id="student-choice-back" class="auth-secondary" type="button">Kembali memilih akses</button>
                 </form>
                 <form id="teacher-login-form" class="hidden">
-                    <div class="auth-field"><label for="teacher-username-input">NIP / NUPTK guru</label><input id="teacher-username-input" inputmode="numeric" autocomplete="username" placeholder="Masukkan NIP atau NUPTK"></div>
+                    <div class="auth-field"><label for="teacher-username-input">Username guru</label><input id="teacher-username-input" autocomplete="username" placeholder="Masukkan username guru"></div>
                     <div class="auth-field"><label for="teacher-password-input">Kata sandi</label><input id="teacher-password-input" type="password" autocomplete="current-password" placeholder="Masukkan kata sandi"></div>
                     <button class="auth-primary" type="submit">Masuk sebagai guru</button>
                     <button id="teacher-choice-back" class="auth-secondary" type="button">Kembali memilih akses</button>
@@ -648,7 +648,7 @@
         el('student-login-form').classList.add('hidden');
         el('teacher-login-form').classList.remove('hidden');
         el('auth-title').textContent = 'Masuk sebagai guru';
-        el('auth-subtitle').textContent = 'Masukkan NIP atau NUPTK untuk mengakses aplikasi.';
+        el('auth-subtitle').textContent = 'Masukkan username dan kata sandi untuk mengakses aplikasi.';
         el('auth-error').textContent = '';
         el('teacher-username-input').focus();
     }
@@ -701,12 +701,12 @@
         error.textContent = '';
         const username = el('teacher-username-input').value.trim().toLowerCase();
         const password = el('teacher-password-input').value;
-        if (!username || !password) { error.textContent = 'Nama pengguna dan kata sandi wajib diisi.'; return; }
+        if (!username || !password) { error.textContent = 'Username dan kata sandi wajib diisi.'; return; }
         try {
             let teacher = await verifyLocalTeacher(username, password);
             if (!teacher) {
                 const result = await postData({ action: 'teacherLogin', payload: { username, password } });
-                if (result.status !== 'success') throw new Error(result.message || 'Nama pengguna atau kata sandi tidak valid.');
+                if (result.status !== 'success') throw new Error(result.message || 'Username atau kata sandi tidak valid.');
                 teacher = { username: result.username, token: result.token, role: result.role };
             }
             currentAdmin = teacher;
