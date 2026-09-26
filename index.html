@@ -620,6 +620,9 @@
         for (let index = 0; index < Math.min(actual.length, expected.length); index++) difference |= actual[index] ^ expected[index];
         return difference === 0 ? { username: account.username, role: 'guru', localOnly: true } : null;
     }
+    function hasLocalTeacherAccount(username) {
+        return JSON.parse(localStorage.getItem(TEACHER_ACCOUNTS_KEY) || '[]').some(item => item.username === username);
+    }
 
     function showAuthScreen() {
         el('auth-screen').classList.remove('hidden');
@@ -698,14 +701,21 @@
     el('teacher-login-form').addEventListener('submit', async event => {
         event.preventDefault();
         const error = el('auth-error');
+        const submitButton = event.currentTarget.querySelector('button[type="submit"]');
         error.textContent = '';
         const username = el('teacher-username-input').value.trim().toLowerCase();
         const password = el('teacher-password-input').value;
         if (!username || !password) { error.textContent = 'Username dan kata sandi wajib diisi.'; return; }
+        submitButton.disabled = true;
+        submitButton.textContent = 'Memeriksa...';
         try {
             let teacher = await verifyLocalTeacher(username, password);
+            if (hasLocalTeacherAccount(username) && !teacher) throw new Error('Username atau kata sandi guru tidak cocok.');
             if (!teacher) {
-                const result = await postData({ action: 'teacherLogin', payload: { username, password } });
+                const result = await Promise.race([
+                    postData({ action: 'teacherLogin', payload: { username, password } }),
+                    new Promise(resolve => setTimeout(() => resolve({ status: 'error', message: 'Koneksi login guru melewati batas waktu.' }), 8000))
+                ]);
                 if (result.status !== 'success') throw new Error(result.message || 'Username atau kata sandi tidak valid.');
                 teacher = { username: result.username, token: result.token, role: result.role };
             }
@@ -714,6 +724,7 @@
             saveAuthSession({ type: 'teacher', identifier: username });
             enterApplication();
         } catch (loginError) { error.textContent = loginError.message; }
+        finally { submitButton.disabled = false; submitButton.textContent = 'Masuk sebagai guru'; }
     });
 
     function getSupabaseSettings() {
