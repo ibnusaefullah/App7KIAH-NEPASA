@@ -264,7 +264,7 @@
         .short-video-index { color: #a8b4c5; font-size: 11px; font-weight: 700; }
         .short-video-heading h2 { margin: 0; color: #fff; font-size: 16px; font-weight: 700; line-height: 1.35; }
         .short-video-player-area { display: grid; place-items: center; min-height: 0; }
-        .short-video-player { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: 100%; overflow: hidden; background: #000; border-radius: 8px; }
+        .short-video-player { position: relative; width: min(100%, calc((100svh - 180px) * 16 / 9)); aspect-ratio: 16 / 9; max-height: 100%; overflow: hidden; background: #000; border-radius: 8px; }
         .short-video-player iframe { display: block; width: 100%; height: 100%; border: 0; }
         .short-video-file-link { display: grid; width: 100%; height: 100%; place-content: center; gap: 10px; padding: 16px; color: #fff; text-align: center; text-decoration: none; }
         .short-video-file-link strong { color: #93c5fd; }
@@ -273,6 +273,19 @@
         .short-video-caption p { margin: 3px 0 0; color: #c0c5ce; font-size: 11px; }
         .short-video-open { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border: 1px solid #ffffff38; border-radius: 50%; color: #fff; }
         .short-video-open svg { width: 18px; height: 18px; }
+        .app-toast { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 50%; z-index: 140; display: flex; width: min(440px, calc(100vw - 28px)); align-items: center; gap: 10px; padding: 12px 12px 12px 14px; border: 1px solid var(--border-color); border-left: 4px solid #2563eb; border-radius: 10px; background: var(--bg-primary); color: var(--text-primary); box-shadow: 0 12px 36px #0f172a2b; opacity: 0; visibility: hidden; transform: translate(-50%, -10px); transition: opacity .18s ease, transform .18s ease, visibility .18s ease; }
+        .app-toast.is-visible { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+        .app-toast[data-type="success"] { border-left-color: #16a34a; }
+        .app-toast[data-type="warning"] { border-left-color: #d97706; }
+        .app-toast[data-type="error"] { border-left-color: #dc2626; }
+        .app-toast-icon { display: grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border-radius: 50%; background: #eff6ff; color: #2563eb; font-size: 13px; font-weight: 800; }
+        .app-toast[data-type="success"] .app-toast-icon { background: #dcfce7; color: #15803d; }
+        .app-toast[data-type="warning"] .app-toast-icon { background: #fef3c7; color: #b45309; }
+        .app-toast[data-type="error"] .app-toast-icon { background: #fee2e2; color: #b91c1c; }
+        .app-toast-message { flex: 1; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+        .app-toast-close { flex: 0 0 30px; width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: var(--text-secondary); font-size: 20px; line-height: 1; }
+        .app-toast-close:hover { background: var(--bg-secondary); }
+        @media(max-height:500px) { .short-video-item { gap: 6px; padding: 8px 12px; } .short-video-heading h2 { font-size: 14px; } .short-video-caption p { font-size: 10px; } .short-video-open { width: 34px; height: 34px; flex-basis: 34px; } }
 
 
     </style>
@@ -417,6 +430,7 @@
     <div id="notification-page-container" class="hidden fixed inset-0 z-50 transform translate-x-full"></div>
     <div id="search-page-container" class="hidden fixed inset-0 z-50 transform translate-x-full"></div>
     <div id="user-profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4"></div>
+    <div id="app-toast" class="app-toast" data-type="info" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true"><span class="app-toast-icon" aria-hidden="true"></span><span class="app-toast-message"></span><button class="app-toast-close" type="button" onclick="dismissToast()" aria-label="Tutup notifikasi">×</button></div>
 
     <script>
     // ### COMBINED SCRIPT ###
@@ -547,6 +561,26 @@
 
     // --- MAIN ELEMENTS ---
     const el = id => document.getElementById(id);
+    let toastTimeout;
+    function dismissToast() {
+        const toast = el('app-toast');
+        if (!toast) return;
+        toast.classList.remove('is-visible');
+        toast.setAttribute('aria-hidden', 'true');
+        clearTimeout(toastTimeout);
+    }
+    function showToast(message, type = 'info', duration = 3600) {
+        const toast = el('app-toast');
+        if (!toast) return;
+        const icon = { info: 'i', success: '✓', warning: '!', error: '!' }[type] || 'i';
+        toast.dataset.type = type;
+        toast.querySelector('.app-toast-icon').textContent = icon;
+        toast.querySelector('.app-toast-message').textContent = String(message ?? '');
+        toast.setAttribute('aria-hidden', 'false');
+        toast.classList.add('is-visible');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(dismissToast, duration);
+    }
     const loadingView = el('loading-view');
     const appContainer = el('app-container');
     const loadingText = el('loading-text');
@@ -1067,7 +1101,8 @@
 
     function observeVideoFeed(videoPage, feed) {
         videoPage.videoObserver?.disconnect();
-        const players = [...feed.querySelectorAll('iframe[data-player-src]')];
+        videoPage.videoFeed?.removeEventListener('scroll', videoPage.videoFeedHandler);
+        const slides = [...feed.querySelectorAll('[data-video-slide]')];
         const playMuted = player => {
             const url = new URL(player.dataset.playerSrc);
             url.searchParams.set('autoplay', '1');
@@ -1076,23 +1111,28 @@
             player.src = url.toString();
             player.dataset.active = 'true';
         };
-        if (!('IntersectionObserver' in window)) {
-            if (players[0]) playMuted(players[0]);
-            return;
-        }
-        const observer = new IntersectionObserver(records => {
-            records.forEach(record => {
-                const player = record.target;
-                if (record.isIntersecting && record.intersectionRatio >= 0.65) {
-                    if (player.dataset.active !== 'true') playMuted(player);
-                } else if (player.dataset.active === 'true') {
+        const activateNearestSlide = () => {
+            const feedCenter = feed.getBoundingClientRect().top + feed.clientHeight / 2;
+            const activeSlide = slides.reduce((nearest, slide) => {
+                const rect = slide.getBoundingClientRect();
+                const distance = Math.abs(rect.top + rect.height / 2 - feedCenter);
+                return !nearest || distance < nearest.distance ? { slide, distance } : nearest;
+            }, null)?.slide;
+            slides.forEach(slide => {
+                const player = slide.querySelector('iframe[data-player-src]');
+                if (!player) return;
+                if (slide === activeSlide && player.dataset.active !== 'true') playMuted(player);
+                else if (slide !== activeSlide && player.dataset.active === 'true') {
                     player.src = 'about:blank';
                     player.dataset.active = 'false';
                 }
             });
-        }, { root: feed, threshold: [0, 0.65] });
-        players.forEach(player => observer.observe(player));
-        videoPage.videoObserver = observer;
+        };
+        const updateActiveSlide = activateNearestSlide;
+        feed.addEventListener('scroll', updateActiveSlide, { passive: true });
+        videoPage.videoFeed = feed;
+        videoPage.videoFeedHandler = updateActiveSlide;
+        activateNearestSlide();
     }
 
     function renderVideoPage() {
@@ -1106,7 +1146,7 @@
             const player = openedFromFile
                 ? `<a class="short-video-file-link" href="https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}" target="_blank" rel="noopener noreferrer"><span>Pemutaran tertanam perlu dibuka melalui alamat web.</span><strong>Putar di YouTube</strong></a>`
                 : `<iframe data-player-src="${youtubeEmbedUrl(video.youtubeId)}" src="about:blank" title="${video.title}" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
-            return `<article class="short-video-item"><header class="short-video-heading"><span class="short-video-index">VIDEO ${String(index + 1).padStart(2, '0')} / ${String(videos.length).padStart(2, '0')}</span><h2>${video.title}</h2></header><div class="short-video-player-area"><div class="short-video-player">${player}</div></div><footer class="short-video-caption"><div><strong>7 KAIH</strong><p>Tujuh Kebiasaan Anak Indonesia Hebat</p></div><a class="short-video-open" href="https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}" target="_blank" rel="noopener noreferrer" aria-label="Buka video di YouTube"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M10 14 21 3M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"/></svg></a></footer></article>`;
+            return `<article class="short-video-item" data-video-slide><header class="short-video-heading"><span class="short-video-index">VIDEO ${String(index + 1).padStart(2, '0')} / ${String(videos.length).padStart(2, '0')}</span><h2>${video.title}</h2></header><div class="short-video-player-area"><div class="short-video-player">${player}</div></div><footer class="short-video-caption"><div><strong>7 KAIH</strong><p>Tujuh Kebiasaan Anak Indonesia Hebat</p></div><a class="short-video-open" href="https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}" target="_blank" rel="noopener noreferrer" aria-label="Buka video di YouTube"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M10 14 21 3M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"/></svg></a></footer></article>`;
         }).join('')}</div>`;
         observeVideoFeed(videoPage, videoPage.querySelector('.short-video-feed'));
     }
@@ -1320,7 +1360,7 @@
                         const habit = habits.find(item => item.name === badge.name);
                         const icon = `<img src="${habit?.icon || ''}" alt="" class="h-full w-full object-contain ${isUnlocked ? '' : 'grayscale opacity-40'}">`;
                         const toastMessage = isUnlocked ? '' : `Selesaikan ${20 - completions} kali lagi untuk membuka lencana ini!`;
-                        const clickAction = isUnlocked && isOwnProfile ? `showBadgeDetailsModal('${badge.name}')` : `alert('${toastMessage}')`;
+                        const clickAction = isUnlocked && isOwnProfile ? `showBadgeDetailsModal('${badge.name}')` : `showToast('${toastMessage}', 'warning')`;
                         return `<div onclick="${clickAction}" class="badge flex flex-col items-center ${isOwnProfile ? 'cursor-pointer' : 'cursor-default'}"><div class="w-14 h-14">${icon}</div><span class="text-xs text-center mt-1 font-medium ${isUnlocked ? '' : 'opacity-50'}">${badge.name}</span></div>`;
                     }).join('')}
                 </div>
@@ -1514,9 +1554,9 @@
             currentAdmin = null;
             saveAuthSession({ type: 'student', identifier: String(student.nisn) });
             enterApplication();
-            alert(`Selamat datang, ${student.name}!`);
+            showToast(`Selamat datang, ${student.name}!`, 'success');
         } else { 
-            alert('NISN tidak valid atau tidak ditemukan.');
+            showToast('NISN tidak valid atau tidak ditemukan.', 'error');
         }
     }
 
@@ -1539,7 +1579,7 @@
             act.nisn === currentStudent.nisn && act.date === todayString
         );
         if (todaysPost) {
-            alert('Kamu sudah memposting aktivitas untuk hari ini.');
+            showToast('Kamu sudah memposting aktivitas untuk hari ini.', 'warning');
             return;
         }
 
@@ -1548,7 +1588,7 @@
             .map(h => h.name);
 
         if (completedHabits.length === 0) {
-            alert('Pilih minimal satu aktivitas.');
+            showToast('Pilih minimal satu aktivitas.', 'warning');
             return;
         }
 
@@ -1603,10 +1643,10 @@
             studentDatabase[currentStudent.nisn] = studentDataToUpdate;
             currentStudent = studentDataToUpdate;
             if (result.status === 'queued') activityFeed[newActivityId] = newActivity;
-            alert(result.status === 'queued' ? 'Aktivitas tersimpan di perangkat dan menunggu koneksi.' : 'Aktivitas berhasil diposting!');
+            showToast(result.status === 'queued' ? 'Aktivitas tersimpan di perangkat dan menunggu koneksi.' : 'Aktivitas berhasil diposting!', 'success');
             switchPage('home');
         } else {
-            alert(`Gagal memposting aktivitas: ${result.message || 'Terjadi kesalahan.'}`);
+            showToast(`Gagal memposting aktivitas: ${result.message || 'Terjadi kesalahan.'}`, 'error');
         }
         
         submitButton.disabled = false;
@@ -1718,7 +1758,7 @@
 
         if (!studentData) {
             console.error(`User with NISN ${nisn} not found.`);
-            alert('Profil siswa tidak dapat ditemukan.');
+            showToast('Profil siswa tidak dapat ditemukan.', 'error');
             return;
         }
 
@@ -2015,7 +2055,7 @@
         // For this example, the changes are only stored locally for the session.
         // e.g., await postData({ action: 'updateSchoolData', payload: schoolData });
 
-        alert('Data sekolah berhasil diperbarui!');
+        showToast('Data sekolah berhasil diperbarui!', 'success');
         el('content-modal').classList.add('hidden');
     }
     
@@ -2086,7 +2126,7 @@
     async function handleContentSubmit(type, id) {
         const title = el('content-title').value;
         if (!title) {
-            alert('Judul tidak boleh kosong.');
+            showToast('Judul tidak boleh kosong.', 'warning');
             return;
         }
 
@@ -2094,7 +2134,7 @@
 
         if (type === 'video') {
             const youtubeId = el('content-youtube-id').value;
-            if (!youtubeId) { alert('YouTube ID tidak boleh kosong.'); return; }
+            if (!youtubeId) { showToast('YouTube ID tidak boleh kosong.', 'warning'); return; }
             newItem.youtubeId = youtubeId;
             videoCollection[newItem.id] = newItem;
         } else { // book
@@ -2102,7 +2142,7 @@
             const cover = el('content-cover').value;
             const category = el('content-category').value;
             const description = el('content-description').value;
-            if (!url || !cover || !category || !description) { alert('Semua field buku harus diisi.'); return; }
+            if (!url || !cover || !category || !description) { showToast('Semua field buku harus diisi.', 'warning'); return; }
             newItem.url = url;
             newItem.cover = cover;
             newItem.category = category;
