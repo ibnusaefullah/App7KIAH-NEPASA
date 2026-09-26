@@ -266,6 +266,11 @@
         .short-video-player-area { display: grid; place-items: center; min-height: 0; }
         .short-video-player { position: relative; width: min(100%, calc((100svh - 180px) * 16 / 9)); aspect-ratio: 16 / 9; max-height: 100%; overflow: hidden; background: #000; border-radius: 8px; }
         .short-video-player iframe { display: block; width: 100%; height: 100%; border: 0; }
+        .short-video-poster { position: absolute; inset: 0; display: grid; place-items: center; background-color: #111318; background-position: center; background-size: cover; }
+        .short-video-poster::before { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, #0009, #0002); }
+        .short-video-play { position: relative; display: flex; align-items: center; gap: 10px; border: 1px solid #ffffff70; border-radius: 999px; padding: 10px 16px; background: #0009; color: #fff; font-size: 13px; font-weight: 700; }
+        .short-video-play-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: #fff; color: #111; }
+        .short-video-poster.hidden { display: none; }
         .short-video-file-link { display: grid; width: 100%; height: 100%; place-content: center; gap: 10px; padding: 16px; color: #fff; text-align: center; text-decoration: none; }
         .short-video-file-link strong { color: #93c5fd; }
         .short-video-caption { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 4px; }
@@ -1110,18 +1115,19 @@
         return url.toString();
     }
 
+    function stopVideoSlide(slide) {
+        const player = slide.querySelector('iframe[data-player-src]');
+        if (!player || player.dataset.active !== 'true') return;
+        player.src = 'about:blank';
+        player.dataset.active = 'false';
+        player.classList.add('hidden');
+        slide.querySelector('.short-video-poster')?.classList.remove('hidden');
+    }
+
     function observeVideoFeed(videoPage, feed) {
         videoPage.videoObserver?.disconnect();
         videoPage.videoFeed?.removeEventListener('scroll', videoPage.videoFeedHandler);
         const slides = [...feed.querySelectorAll('[data-video-slide]')];
-        const playMuted = player => {
-            const url = new URL(player.dataset.playerSrc);
-            url.searchParams.set('autoplay', '1');
-            url.searchParams.set('mute', '1');
-            url.searchParams.set('playsinline', '1');
-            player.src = url.toString();
-            player.dataset.active = 'true';
-        };
         const activateNearestSlide = () => {
             const feedCenter = feed.getBoundingClientRect().top + feed.clientHeight / 2;
             const activeSlide = slides.reduce((nearest, slide) => {
@@ -1130,13 +1136,7 @@
                 return !nearest || distance < nearest.distance ? { slide, distance } : nearest;
             }, null)?.slide;
             slides.forEach(slide => {
-                const player = slide.querySelector('iframe[data-player-src]');
-                if (!player) return;
-                if (slide === activeSlide && player.dataset.active !== 'true') playMuted(player);
-                else if (slide !== activeSlide && player.dataset.active === 'true') {
-                    player.src = 'about:blank';
-                    player.dataset.active = 'false';
-                }
+                if (slide !== activeSlide) stopVideoSlide(slide);
             });
         };
         const updateActiveSlide = activateNearestSlide;
@@ -1156,9 +1156,24 @@
         videoPage.innerHTML = `<div class="short-video-feed" tabindex="0" aria-label="Video kebiasaan anak Indonesia">${videos.map((video, index) => {
             const player = openedFromFile
                 ? `<a class="short-video-file-link" href="https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}" target="_blank" rel="noopener noreferrer"><span>Pemutaran tertanam perlu dibuka melalui alamat web.</span><strong>Putar di YouTube</strong></a>`
-                : `<iframe data-player-src="${youtubeEmbedUrl(video.youtubeId)}" src="about:blank" title="${video.title}" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
+                : `<div class="short-video-poster" style="background-image:url('https://img.youtube.com/vi/${encodeURIComponent(video.youtubeId)}/hqdefault.jpg')"><button class="short-video-play" type="button" data-play-video><span class="short-video-play-icon">▶</span><span>Putar dengan suara</span></button></div><iframe class="hidden" data-player-src="${youtubeEmbedUrl(video.youtubeId)}" src="about:blank" title="${video.title}" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
             return `<article class="short-video-item" data-video-slide><header class="short-video-heading"><span class="short-video-index">VIDEO ${String(index + 1).padStart(2, '0')} / ${String(videos.length).padStart(2, '0')}</span><h2>${video.title}</h2></header><div class="short-video-player-area"><div class="short-video-player">${player}</div></div><footer class="short-video-caption"><div><strong>7 KAIH</strong><p>Tujuh Kebiasaan Anak Indonesia Hebat</p></div><a class="short-video-open" href="https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}" target="_blank" rel="noopener noreferrer" aria-label="Buka video di YouTube"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7M10 14 21 3M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"/></svg></a></footer></article>`;
         }).join('')}</div>`;
+        videoPage.querySelectorAll('[data-play-video]').forEach(button => button.addEventListener('click', () => {
+            const slide = button.closest('[data-video-slide]');
+            const player = slide.querySelector('iframe[data-player-src]');
+            videoPage.querySelectorAll('[data-video-slide]').forEach(otherSlide => {
+                if (otherSlide !== slide) stopVideoSlide(otherSlide);
+            });
+            const url = new URL(player.dataset.playerSrc);
+            url.searchParams.set('autoplay', '1');
+            url.searchParams.set('mute', '0');
+            url.searchParams.set('playsinline', '1');
+            player.src = url.toString();
+            player.classList.remove('hidden');
+            slide.querySelector('.short-video-poster').classList.add('hidden');
+            player.dataset.active = 'true';
+        }));
         observeVideoFeed(videoPage, videoPage.querySelector('.short-video-feed'));
     }
 
