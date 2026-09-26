@@ -307,18 +307,22 @@
                 <small>UPTD SD Negeri 1 Paoman</small>
             </div>
             <div class="auth-card">
-                <h2 id="auth-title">Masuk sebagai siswa</h2>
-                <p id="auth-subtitle">Gunakan NISN untuk melanjutkan ke aplikasi.</p>
+                <h2 id="auth-title">Pilih akses</h2>
+                <p id="auth-subtitle">Pilih cara masuk untuk melanjutkan ke aplikasi.</p>
+                <div id="auth-choice" class="space-y-3">
+                    <button id="student-choice-button" class="auth-primary" type="button">Masuk sebagai siswa</button>
+                    <button id="teacher-choice-button" class="auth-secondary" type="button">Masuk sebagai guru</button>
+                </div>
                 <form id="student-login-form">
-                    <div class="auth-field"><label for="student-nisn-input">NISN</label><input id="student-nisn-input" inputmode="numeric" autocomplete="username" placeholder="Masukkan NISN" required></div>
+                    <div class="auth-field"><label for="student-nisn-input">NISN siswa</label><input id="student-nisn-input" inputmode="numeric" autocomplete="username" placeholder="Masukkan NISN" required></div>
                     <button class="auth-primary" type="submit">Masuk sebagai siswa</button>
+                    <button id="student-choice-back" class="auth-secondary" type="button">Kembali memilih akses</button>
                 </form>
-                <button id="teacher-login-toggle" class="auth-secondary" type="button">Masuk sebagai guru</button>
                 <form id="teacher-login-form" class="hidden">
-                    <div class="auth-field"><label for="teacher-username-input">Nama pengguna guru</label><input id="teacher-username-input" autocomplete="username" placeholder="Contoh: guru"></div>
+                    <div class="auth-field"><label for="teacher-username-input">NIP / NUPTK guru</label><input id="teacher-username-input" inputmode="numeric" autocomplete="username" placeholder="Masukkan NIP atau NUPTK"></div>
                     <div class="auth-field"><label for="teacher-password-input">Kata sandi</label><input id="teacher-password-input" type="password" autocomplete="current-password" placeholder="Masukkan kata sandi"></div>
                     <button class="auth-primary" type="submit">Masuk sebagai guru</button>
-                    <button id="student-login-toggle" class="auth-secondary" type="button">Kembali ke login siswa</button>
+                    <button id="teacher-choice-back" class="auth-secondary" type="button">Kembali memilih akses</button>
                 </form>
                 <div id="auth-error" class="auth-error" role="status"></div>
                 <div class="auth-note">Data tersimpan dengan aman melalui koneksi aplikasi.</div>
@@ -598,6 +602,7 @@
     const SUPABASE_SETTINGS_KEY = 'ptkaih-supabase-settings';
     const MOBILE_QUEUE_KEY = 'ptkaih-mobile-queue';
     const TEACHER_ACCOUNTS_KEY = 'ptkaih-teacher-accounts';
+    const AUTH_SESSION_KEY = 'ptkaih-auth-session';
 
     function encodeAuthBytes(bytes) { return btoa(String.fromCharCode(...new Uint8Array(bytes))); }
     function decodeAuthBytes(value) { return Uint8Array.from(atob(value), character => character.charCodeAt(0)); }
@@ -620,11 +625,32 @@
         el('auth-screen').classList.remove('hidden');
         el('auth-screen').classList.add('flex');
         el('app-container').style.display = 'none';
+        el('auth-choice').classList.remove('hidden');
+        el('student-login-form').classList.add('hidden');
+        el('teacher-login-form').classList.add('hidden');
+        el('auth-title').textContent = 'Pilih akses';
+        el('auth-subtitle').textContent = 'Pilih cara masuk untuk melanjutkan ke aplikasi.';
+        el('auth-error').textContent = '';
+    }
+
+    function showStudentLogin() {
+        el('auth-choice').classList.add('hidden');
         el('student-login-form').classList.remove('hidden');
         el('teacher-login-form').classList.add('hidden');
         el('auth-title').textContent = 'Masuk sebagai siswa';
-        el('auth-subtitle').textContent = 'Gunakan NISN untuk melanjutkan ke aplikasi.';
+        el('auth-subtitle').textContent = 'Masukkan NISN untuk mengakses aplikasi.';
         el('auth-error').textContent = '';
+        el('student-nisn-input').focus();
+    }
+
+    function showTeacherLogin() {
+        el('auth-choice').classList.add('hidden');
+        el('student-login-form').classList.add('hidden');
+        el('teacher-login-form').classList.remove('hidden');
+        el('auth-title').textContent = 'Masuk sebagai guru';
+        el('auth-subtitle').textContent = 'Masukkan NIP atau NUPTK untuk mengakses aplikasi.';
+        el('auth-error').textContent = '';
+        el('teacher-username-input').focus();
     }
 
     function enterApplication() {
@@ -635,15 +661,31 @@
         switchPage('home', true);
     }
 
-    byId('teacher-login-toggle').addEventListener('click', () => {
-        byId('student-login-form').classList.add('hidden');
-        byId('teacher-login-form').classList.remove('hidden');
-        byId('auth-title').textContent = 'Masuk sebagai guru';
-        byId('auth-subtitle').textContent = 'Gunakan akun guru yang sudah dibuat di panel admin.';
-        byId('auth-error').textContent = '';
-        byId('teacher-username-input').focus();
-    });
-    byId('student-login-toggle').addEventListener('click', showAuthScreen);
+    function saveAuthSession(session) { sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session)); }
+    function clearAuthSession() { sessionStorage.removeItem(AUTH_SESSION_KEY); }
+    function restoreAuthSession() {
+        try {
+            const session = JSON.parse(sessionStorage.getItem(AUTH_SESSION_KEY) || 'null');
+            if (session?.type === 'student' && studentDatabase[session.identifier]) {
+                currentStudent = studentDatabase[session.identifier];
+                currentAdmin = null;
+                enterApplication();
+                return true;
+            }
+            if (session?.type === 'teacher' && session.identifier) {
+                currentAdmin = { username: session.identifier, role: 'guru', localOnly: true };
+                currentStudent = null;
+                enterApplication();
+                return true;
+            }
+        } catch (error) { clearAuthSession(); }
+        return false;
+    }
+
+    byId('student-choice-button').addEventListener('click', showStudentLogin);
+    byId('teacher-choice-button').addEventListener('click', showTeacherLogin);
+    byId('student-choice-back').addEventListener('click', showAuthScreen);
+    byId('teacher-choice-back').addEventListener('click', showAuthScreen);
     byId('student-login-form').addEventListener('submit', async event => {
         event.preventDefault();
         const error = byId('auth-error');
@@ -669,13 +711,14 @@
             }
             currentAdmin = teacher;
             currentStudent = null;
+            saveAuthSession({ type: 'teacher', identifier: username });
             enterApplication();
         } catch (loginError) { error.textContent = loginError.message; }
     });
 
     function getSupabaseSettings() {
         try {
-            const settings = Object.assign({}, JSON.parse(localStorage.getItem(SUPABASE_SETTINGS_KEY) || '{}'), window.PTKAIH_SUPABASE_CONFIG || {});
+            const settings = Object.assign({}, window.PTKAIH_SUPABASE_CONFIG || {}, JSON.parse(localStorage.getItem(SUPABASE_SETTINGS_KEY) || '{}'));
             if (settings.url && settings.anonKey) return { url: settings.url.replace(/\/$/, ''), anonKey: settings.anonKey };
         } catch (error) { console.warn('Pengaturan Supabase tidak dapat dibaca.', error); }
         throw new Error('Koneksi database belum tersedia.');
@@ -790,7 +833,7 @@
             initializeNotifications();
             setupEventListeners();
             setupTouchGestures();
-            showAuthScreen();
+            if (!restoreAuthSession()) showAuthScreen();
         }
         updateNavVisibility();
         const activePageId = document.querySelector('.page.active')?.id.replace('page-', '') || 'home';
@@ -1386,6 +1429,7 @@
             }
             currentStudent = student;
             currentAdmin = null;
+            saveAuthSession({ type: 'student', identifier: String(student.nisn) });
             enterApplication();
             alert(`Selamat datang, ${student.name}!`);
         } else { 
@@ -1398,6 +1442,7 @@
         currentStudent = null;
         currentAdmin = null;
         viewingProfileNisn = null;
+        clearAuthSession();
         showAuthScreen();
     }
     
