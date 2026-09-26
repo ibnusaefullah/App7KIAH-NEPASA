@@ -48,7 +48,16 @@
             background-color: var(--bg-secondary);  
             color: var(--text-primary);
             transition: background-color 0.3s, color 0.3s;
+            width: 100%;
+            min-height: 100%;
         }
+
+        html, body { height: 100%; }
+        #app-shell { height: 100dvh; min-height: 100svh; max-height: 100dvh; overflow: hidden; }
+        #splash-screen { min-height: 100dvh; min-height: 100svh; }
+        #app-header, .bottom-nav { flex: 0 0 auto; }
+        #app-container { min-height: 0; }
+        #app-container > main { min-height: 0; overscroll-behavior: contain; }
 
         /* [SPLASH SCREEN STYLES] */
         #splash-screen {
@@ -305,11 +314,11 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                         </svg>
-                        <span id="notification-dot" class="hidden absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2" style="ring-color: var(--bg-primary)"></span>
+                        <span id="notification-dot" class="hidden absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500" style="box-shadow: 0 0 0 2px var(--bg-primary);"></span>
                     </button>
                 </div>
             </header>
-            <main class="flex-grow overflow-y-auto">
+            <main class="flex-grow min-h-0 overflow-y-auto">
                 <div id="page-home" class="page"></div>
                 <div id="page-video" class="page p-4"></div>
                 <div id="page-book" class="page h-full"></div>
@@ -317,7 +326,7 @@
                 <div id="page-konten" class="page p-4"></div>
                 <div id="page-profile" class="page"></div>
             </main>
-            <nav class="bottom-nav w-full p-2 border-t">
+            <nav class="bottom-nav w-full flex-shrink-0 p-2 border-t" style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));">
                 <div class="flex justify-around items-center">
                     <button class="nav-item flex-1 flex flex-col items-center p-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors active" data-page="home"><span class="text-xs nav-text">Beranda</span></button>
                     <button class="nav-item flex-1 flex flex-col items-center p-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors" data-page="video"><span class="text-xs nav-text">Video</span></button>
