@@ -17,6 +17,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf-autotable.min.js"></script>
 
+    <script src="supabase-config.js"></script>
     <script>
         // --- Konfigurasi Tailwind untuk Mode Gelap ---
         tailwind.config = {
@@ -285,6 +286,13 @@
         <div id="loading-view" class="flex flex-col items-center justify-center h-full" style="background-color: var(--bg-primary);">
             <div class="loader"></div>
             <p id="loading-text" class="mt-4 text-gray-600 dark:text-gray-400 text-center px-4">Menyiapkan aplikasi...</p>
+            <form id="supabase-setup-form" class="hidden w-full max-w-sm px-6 mt-6 space-y-3" style="color: var(--text-primary);">
+                <p class="text-sm text-center" style="color: var(--text-secondary);">Pengaturan Supabase belum tersedia di browser ini. Salin URL dan anon key dari Panel Admin/Guru.</p>
+                <input id="setup-supabase-url" type="url" class="input-field" placeholder="Supabase Project URL" required>
+                <input id="setup-supabase-key" type="password" class="input-field" placeholder="Supabase anon / publishable key" autocomplete="off" required>
+                <button id="setup-supabase-button" type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg">Tes &amp; buka aplikasi</button>
+                <p id="setup-supabase-status" class="text-xs text-center" role="status" aria-live="polite"></p>
+            </form>
         </div>
         
         <!-- App Container (Main structure) -->
@@ -541,11 +549,71 @@
 
     function getSupabaseSettings() {
         try {
-            const settings = JSON.parse(localStorage.getItem(SUPABASE_SETTINGS_KEY) || '{}');
+            const settings = Object.assign({}, JSON.parse(localStorage.getItem(SUPABASE_SETTINGS_KEY) || '{}'), window.PTKAIH_SUPABASE_CONFIG || {});
             if (settings.url && settings.anonKey) return { url: settings.url.replace(/\/$/, ''), anonKey: settings.anonKey };
         } catch (error) { console.warn('Pengaturan Supabase tidak dapat dibaca.', error); }
         throw new Error('Atur Project URL dan anon key di menu Pengaturan Panel Admin/Guru terlebih dahulu.');
     }
+
+    async function verifySupabaseSetup(url, anonKey) {
+        let endpoint;
+        try {
+            endpoint = new URL(`${url.replace(/\/$/, '')}/rest/v1/app_records?select=record_id&limit=1`);
+        } catch (error) {
+            throw new Error('Project URL tidak valid.');
+        }
+        if (!navigator.onLine) throw new Error('Tidak ada koneksi internet.');
+        let response;
+        try {
+            response = await fetch(endpoint, { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` }, mode: 'cors' });
+        } catch (error) {
+            throw new Error('Supabase tidak dapat dihubungi. Periksa URL dan koneksi internet.');
+        }
+        if (!response.ok) {
+            const body = await response.text();
+            let message = '';
+            let code = '';
+            try {
+                const result = JSON.parse(body);
+                message = result?.message || result?.msg || '';
+                code = result?.code || '';
+            } catch (error) { message = ''; }
+            if (code === 'PGRST205' || message.includes('app_records')) throw new Error('Tabel public.app_records belum dibuat. Jalankan supabase-schema.sql di Supabase SQL Editor.');
+            if (response.status === 401 || response.status === 403) throw new Error('Anon/publishable key ditolak. Salin key dari Supabase → Project Settings → API.');
+            throw new Error(message || `Supabase menolak koneksi (HTTP ${response.status}).`);
+        }
+    }
+
+    function showSupabaseSetup(error) {
+        const form = el('supabase-setup-form');
+        const loader = el('loading-view').querySelector('.loader');
+        form.classList.remove('hidden');
+        loader.style.display = 'none';
+        el('loading-text').innerHTML = `Data belum tersedia.<br><small>${error.message}</small>`;
+        el('setup-supabase-url').value = '';
+        el('setup-supabase-key').value = '';
+    }
+
+    el('supabase-setup-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = el('setup-supabase-button');
+        const status = el('setup-supabase-status');
+        const url = el('setup-supabase-url').value.trim().replace(/\/$/, '');
+        const anonKey = el('setup-supabase-key').value.trim();
+        if (!url || !anonKey) return;
+        button.disabled = true;
+        status.textContent = 'Memeriksa koneksi...';
+        try {
+            await verifySupabaseSetup(url, anonKey);
+            localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify({ url, anonKey }));
+            status.textContent = 'Koneksi berhasil. Memuat data...';
+            await loadApplicationData();
+        } catch (error) {
+            status.textContent = error.message;
+        } finally {
+            button.disabled = false;
+        }
+    });
 
     async function supabaseRequest(path, options = {}) {
         const settings = getSupabaseSettings();
@@ -603,8 +671,7 @@
                 applyAppData(JSON.parse(cachedData), isRefresh);
             } else {
                 loadingView.style.display = 'flex';
-                loadingText.innerHTML = `Data belum tersedia. Buka panel Admin/Guru untuk mengatur Supabase.<br><small>${error.message}</small>`;
-                el('loading-view').querySelector('.loader').style.display = 'none';
+                showSupabaseSetup(error);
                 console.error('Error fetching application data:', error);
             }
         }
