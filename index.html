@@ -427,6 +427,14 @@
     <div id="content-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4"></div>
     <div id="badge-details-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4"></div>
     <div id="book-details-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-end"></div>
+    <section id="book-reader-modal" class="hidden fixed inset-0 z-[80] flex-col bg-white dark:bg-gray-950" role="dialog" aria-modal="true" aria-labelledby="book-reader-title">
+        <header class="flex items-center gap-3 border-b border-gray-200 px-3 py-2 dark:border-gray-700" style="padding-top:max(.5rem,env(safe-area-inset-top))">
+            <button type="button" onclick="closeBookReader()" class="rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-800 dark:bg-gray-800 dark:text-white">Kembali</button>
+            <div class="min-w-0 flex-1"><h2 id="book-reader-title" class="truncate text-sm font-semibold text-gray-900 dark:text-white">Pembaca buku</h2><p id="book-reading-status" class="text-xs text-gray-500 dark:text-gray-400"></p></div>
+            <a id="book-reader-source" href="#" target="_blank" rel="noopener noreferrer" class="shrink-0 text-sm font-semibold text-blue-600">Buka file</a>
+        </header>
+        <iframe id="book-reader-frame" class="min-h-0 flex-1 border-0 bg-gray-100 dark:bg-black" title="Pembaca buku" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>
+    </section>
     <div id="notification-page-container" class="hidden fixed inset-0 z-50 transform translate-x-full"></div>
     <div id="search-page-container" class="hidden fixed inset-0 z-50 transform translate-x-full"></div>
     <div id="user-profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4"></div>
@@ -558,6 +566,8 @@
     let currentPageId = 'home';
     let isTransitioning = false; // Flag to prevent multiple transitions at once
     let viewingProfileNisn = null; // To track which profile is being viewed
+    const BOOK_READ_REWARD_MS = 60000;
+    let activeBookReading = null;
 
     // --- MAIN ELEMENTS ---
     const el = id => document.getElementById(id);
@@ -1253,12 +1263,13 @@
                         <p class="text-sm" style="color: var(--text-secondary);">${book.description}</p>
                     </div>
                  </div>
-                 <a href="${book.url}" target="_blank" class="block w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg mt-6 hover:bg-blue-600 transition">
-                    Baca Sekarang
-                 </a>
+                      <button id="book-start-reading" type="button" class="block w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg mt-6 hover:bg-blue-600 transition">
+                          Baca Sekarang
+                      </button>
             </div>
         `;
         modal.classList.remove('hidden');
+        el('book-start-reading').addEventListener('click', () => startBookReading(book.id));
         
         const modalContent = el('book-details-modal-content');
         setTimeout(() => {
@@ -1271,6 +1282,124 @@
                  setTimeout(() => modal.classList.add('hidden'), 300);
              }
         });
+    }
+
+    function closeBookReader() {
+        stopBookReadingTimer();
+        const modal = el('book-reader-modal');
+        const frame = el('book-reader-frame');
+        el('book-reading-status').textContent = '';
+        frame.src = 'about:blank';
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function stopBookReadingTimer() {
+        if (activeBookReading?.timer) clearInterval(activeBookReading.timer);
+        activeBookReading = null;
+    }
+
+    function resetBookReadingClock() {
+        if (activeBookReading) activeBookReading.lastTickAt = Date.now();
+    }
+
+    document.addEventListener('visibilitychange', resetBookReadingClock);
+    window.addEventListener('blur', resetBookReadingClock);
+    window.addEventListener('focus', resetBookReadingClock);
+
+    function updateBookReadingStatus() {
+        const reading = activeBookReading;
+        if (!reading) return;
+        const now = Date.now();
+        const focused = document.visibilityState === 'visible' && document.hasFocus() && !el('book-reader-modal').classList.contains('hidden');
+        if (focused) reading.activeMilliseconds += Math.min(now - reading.lastTickAt, 2000);
+        reading.lastTickAt = now;
+        if (reading.activeMilliseconds >= BOOK_READ_REWARD_MS) {
+            completeBookReading(reading);
+            return;
+        }
+        const secondsLeft = Math.ceil((BOOK_READ_REWARD_MS - reading.activeMilliseconds) / 1000);
+        const timeLeft = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`;
+        el('book-reading-status').textContent = focused
+            ? `Baca ${timeLeft} lagi untuk memperoleh poin Gemar Belajar.`
+            : 'Penghitung membaca dijeda saat aplikasi tidak aktif.';
+    }
+
+    async function completeBookReading(reading) {
+        if (activeBookReading !== reading) return;
+        stopBookReadingTimer();
+        const student = studentDatabase[reading.nisn];
+        const today = formatLocalDate(new Date());
+        const readDays = student?.bookReadingDays || {};
+        if (!student || readDays[reading.bookId] === today) return;
+
+        const achievements = student.achievements || {};
+        const readingHistory = Array.isArray(achievements['Gemar Belajar']) ? achievements['Gemar Belajar'] : [];
+        const updatedStudent = {
+            ...student,
+            points: (Number(student.points) || 0) + 1,
+            bookReadingDays: { ...readDays, [reading.bookId]: today },
+            achievements: {
+                ...achievements,
+                'Gemar Belajar': [...readingHistory, new Date().toISOString()]
+            }
+        };
+        studentDatabase[reading.nisn] = updatedStudent;
+        currentStudent = updatedStudent;
+        try {
+            const cachedData = JSON.parse(localStorage.getItem('ptkaih-data-cache') || '{}');
+            cachedData.students = studentDatabase;
+            localStorage.setItem('ptkaih-data-cache', JSON.stringify(cachedData));
+        } catch (error) { console.warn('Poin membaca tidak dapat disimpan ke cache.', error); }
+        if (currentPageId === 'profile') renderProfilePage();
+
+        const result = await postData({ action: 'updateStudentData', payload: updatedStudent });
+        if (result.status === 'error') showToast('Poin membaca belum tersinkron: ' + result.message, 'warning');
+        else showToast(result.status === 'queued' ? 'Poin Gemar Belajar dicatat dan menunggu koneksi.' : 'Selesai membaca. +1 poin Gemar Belajar.', 'success');
+        el('book-reading-status').textContent = 'Poin Gemar Belajar berhasil diperoleh untuk buku ini hari ini.';
+    }
+
+    async function startBookReading(bookId) {
+        const book = bookCollection[bookId];
+        if (!book) return;
+        let bookUrl;
+        try {
+            bookUrl = new URL(book.url, window.location.href);
+        } catch (error) {
+            showToast('Tautan buku tidak valid.', 'error');
+            return;
+        }
+        if (!['http:', 'https:'].includes(bookUrl.protocol)) {
+            showToast('Tautan buku harus menggunakan HTTP atau HTTPS.', 'error');
+            return;
+        }
+
+        el('book-reader-title').textContent = book.title || 'Pembaca buku';
+        el('book-reading-status').textContent = '';
+        el('book-reader-source').href = bookUrl.href;
+        el('book-reader-frame').title = book.title || 'Pembaca buku';
+        el('book-reader-frame').src = bookUrl.href;
+        el('book-details-modal').classList.add('hidden');
+        el('book-reader-modal').classList.remove('hidden');
+        el('book-reader-modal').classList.add('flex');
+
+        if (!currentStudent) {
+            showToast('Masuk sebagai siswa untuk memperoleh poin Gemar Belajar.', 'info');
+            return;
+        }
+
+        const nisn = String(currentStudent.nisn);
+        const student = studentDatabase[nisn] || currentStudent;
+        const today = formatLocalDate(new Date());
+        if (student.bookReadingDays?.[bookId] === today) {
+            el('book-reading-status').textContent = 'Poin untuk buku ini sudah diperoleh hari ini.';
+            showToast('Poin buku ini sudah diperoleh hari ini. Kamu tetap bisa membaca.', 'info');
+            return;
+        }
+        stopBookReadingTimer();
+        activeBookReading = { bookId, nisn, activeMilliseconds: 0, lastTickAt: Date.now(), timer: null };
+        updateBookReadingStatus();
+        activeBookReading.timer = setInterval(updateBookReadingStatus, 1000);
     }
     
     function renderProfilePage() {
